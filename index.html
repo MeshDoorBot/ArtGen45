@@ -167,14 +167,17 @@ function drawWhitePill(ctx,x,y,w,h){
 }
 
 function shrinkFontToFit(ctx,text,startSize,maxWidth){
-  let size=startSize;
-  while(size>18){
-    ctx.font=`${size}px MeshFont`;
-    if(ctx.measureText(text).width<=maxWidth) break;
+  let size = startSize;
+  const MIN_SIZE = 14; // 👈 allow proper shrinking
+
+  while(size > MIN_SIZE){
+    ctx.font = `${size}px MeshFont`;
+    if(ctx.measureText(text).width <= maxWidth) break;
     size--;
   }
   return size;
 }
+
 
 /* ===========================
    DRAW POST
