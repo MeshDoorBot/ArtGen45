@@ -175,6 +175,7 @@ function scaleFontsToFit(ctx, primaryText, secondaryText, maxTextWidth){
   const secondaryW = secondaryText ? ctx.measureText(secondaryText).width : 0;
 
   const widest = Math.max(primaryW, secondaryW);
+
   if(widest <= maxTextWidth){
     return { primarySize: 64, secondarySize: 42 };
   }
@@ -234,9 +235,17 @@ function drawStory(){
       secondaryLine = show.DJ + (guest ? ' + ' + guest : '');
     }
 
+    const dateStr = new Date(show.Date)
+      .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    const [startRaw,endRaw] = show['A-B'].split('-');
+    const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
+
+    /* === MAIN PILL SCALING === */
     const maxTextW = MAX_PILL_WIDTH - (PILL_PADDING_X * 2);
     const sizes = scaleFontsToFit(ctx, primaryLine, secondaryLine, maxTextW);
 
+    // Measure widths using the scaled sizes
     ctx.font = `${sizes.primarySize}px MeshFont`;
     const primaryW = ctx.measureText(primaryLine).width;
 
@@ -253,38 +262,40 @@ function drawStory(){
 
     const pillHeight = secondaryLine ? 140 : 92;
     const pillY = STORY_POS.nowPlayingY;
-    const pillCenterY = pillY + pillHeight / 2;
-    const lineGap = sizes.secondarySize ? sizes.secondarySize * 0.8 : 0;
 
     drawWhitePill(ctx, pillX, pillY, pillW, pillHeight);
 
-    ctx.fillStyle='#000';
-    ctx.textBaseline='middle';
+    /* ✅ CENTER THE WHOLE TEXT BLOCK AS ONE UNIT (iOS-safe) */
+    const centerY = pillY + (pillHeight / 2);
+
+    // Approximate line “visual height” from font sizes (stable across browsers)
+    const primaryH = sizes.primarySize * 0.95;
+    const secondaryH = sizes.secondarySize * 0.95;
+
+    // Gap between lines (scales with text, and stays consistent on iOS)
+    const gap = secondaryLine ? Math.max(10, Math.round(sizes.secondarySize * 0.35)) : 0;
+
+    const blockH = secondaryLine ? (primaryH + gap + secondaryH) : primaryH;
+    const blockTop = centerY - (blockH / 2);
+
+    const primaryY = blockTop + (primaryH / 2);
+    const secondaryY = blockTop + primaryH + gap + (secondaryH / 2);
+
+    ctx.fillStyle = '#000';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
 
     ctx.font = `${sizes.primarySize}px MeshFont`;
-    ctx.fillText(
-      primaryLine,
-      pillX + PILL_PADDING_X,
-      secondaryLine ? pillCenterY - lineGap/2 : pillCenterY
-    );
+    ctx.fillText(primaryLine, pillX + PILL_PADDING_X, secondaryLine ? primaryY : centerY);
 
     if(secondaryLine){
-      ctx.globalAlpha=0.75;
+      ctx.globalAlpha = 0.75;
       ctx.font = `${sizes.secondarySize}px MeshFont`;
-      ctx.fillText(
-        secondaryLine,
-        pillX + PILL_PADDING_X,
-        pillCenterY + lineGap/2
-      );
-      ctx.globalAlpha=1;
+      ctx.fillText(secondaryLine, pillX + PILL_PADDING_X, secondaryY);
+      ctx.globalAlpha = 1;
     }
 
-    const dateStr = new Date(show.Date)
-      .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-
-    const [startRaw,endRaw] = show['A-B'].split('-');
-    const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
-
+    /* === DATE / TIME PILLS === */
     const dateY = (showEqualsDJ
       ? STORY_POS.dateY - DJ_LINE_OFFSET
       : STORY_POS.dateY) + PILL_VERTICAL_GAP;
@@ -298,8 +309,8 @@ function drawStory(){
     drawWhitePill(ctx, startX + dateW + DATE_TIME_GAP, dateY, timeW, 52);
 
     ctx.fillStyle='#000';
-    ctx.textAlign='center';
     ctx.textBaseline='middle';
+    ctx.textAlign='center';
     ctx.fillText(dateStr, startX + dateW/2, dateY + 26);
     ctx.fillText(timeStr, startX + dateW + DATE_TIME_GAP + timeW/2, dateY + 26);
 
@@ -311,6 +322,34 @@ function drawStory(){
     downloadBtn.disabled=false;
   };
 }
+
+/* ===========================
+   DOWNLOAD (SAFE)
+=========================== */
+downloadBtn.onclick = async () => {
+  const blob = await new Promise(r => c.toBlob(r,'image/png',1));
+  const filename = 'mesh_instagram_post.png';
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if(!isIOS){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    return;
+  }
+
+  const file = new File([blob], filename, { type:'image/png' });
+  if(navigator.canShare && navigator.canShare({ files:[file] })){
+    try{ await navigator.share({ files:[file] }); return; }catch(e){}
+  }
+
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+};
 
 window.onload=loadShows;
 </script>
