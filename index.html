@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mesh Post — ART GEN (4:5)</title>
+
+<style>
+@font-face{
+  font-family:'MeshFont';
+  src:url('fonts/MeshFont.ttf') format('truetype');
+  font-display:swap;
+}
+
+html,body{
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:MeshFont, system-ui, -apple-system, BlinkMacSystemFont, Inter, Arial, sans-serif;
+}
+
+body{
+  display:flex;
+  justify-content:center;
+  padding:20px;
+}
+
+.container{
+  width:100%;
+  max-width:420px;
+}
+
+h1{
+  text-align:center;
+  font-size:16px;
+  margin-bottom:10px;
+  opacity:.7;
+}
+
+select,input,button{
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:6px;
+  border:none;
+  font-size:14px;
+}
+
+button{
+  background:#1db954;
+  color:#fff;
+  cursor:pointer;
+}
+
+canvas{
+  width:100%;
+  height:auto;
+  background:#000;
+  border-radius:12px;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>Mesh Post — ART GEN (4:5)</h1>
+
+<select id="showPicker" disabled>
+  <option>Loading shows…</option>
+</select>
+
+<input type="file" id="uploadInput" accept="image/*">
+<input type="text" id="guestInput" placeholder="Add Guest (optional)">
+
+<button id="renderBtn" disabled>Generate Artwork</button>
+<button id="downloadBtn" disabled>Download Art</button>
+
+<!-- ✅ 4:5 Instagram canvas -->
+<canvas id="c" width="1080" height="1350"></canvas>
+
+</div>
+
+<script>
+/* ===========================
+   CONSTANTS (4:5 TUNED)
+=========================== */
+const STORY_POS = {
+  x: 128,
+  nowPlayingY: 980,
+  dateY: 1120
+};
+
+const DJ_LINE_OFFSET = 40;
+const MAX_PILL_WIDTH = 1080 - 256;
+const PILL_PADDING_X = 36;
+const DATE_TIME_GAP = 16;
+const TIME_TEXT_Y_OFFSET = 0;
+const PILL_VERTICAL_GAP = 16; // 👈 controls spacing between main pill & date/time
+
+
+let shows = [];
+let bgData = null;
+
+/* ===========================
+   LOAD SHOW DATA
+=========================== */
+async function loadShows(){
+  const picker = document.getElementById('showPicker');
+  try{
+    const res = await fetch(
+      'https://script.google.com/macros/s/AKfycbw3QgJtZXB48I0BUMpTE5Dlo2kqMReNuD4jbiEVBaB1z49bSgzEkAgixkjHxwTKRwY0/exec'
+    );
+    shows = await res.json();
+  }catch(e){
+    shows=[];
+  }
+
+  picker.innerHTML = '<option disabled selected>Select a show</option>';
+  shows.forEach((s,i)=>{
+    const d = new Date(s.Date);
+    const opt = document.createElement('option');
+    opt.value=i;
+    opt.textContent =
+      `${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} — ${s['Now Playing']}`;
+    picker.appendChild(opt);
+  });
+  picker.disabled=false;
+}
+
+uploadInput.addEventListener('change',e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    bgData = ev.target.result;
+    renderBtn.disabled=false;
+  };
+  r.readAsDataURL(f);
+});
+
+renderBtn.addEventListener('click',drawStory);
+
+/* ===========================
+   HELPERS
+=========================== */
+function to12h(time){
+  const [h,m] = time.split(':').map(Number);
+  const hr = ((h + 11) % 12) + 1;
+  return `${hr}${m ? ':'+m.toString().padStart(2,'0') : ''}${h >= 12 ? 'pm' : 'am'}`;
+}
+
+function drawVignette(ctx,w,h){
+  const g = ctx.createRadialGradient(
+    w/2, h/2, Math.min(w,h)*0.25,
+    w/2, h/2, Math.max(w,h)*0.85
+  );
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,0.6)');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,w,h);
+}
+
+function drawWhitePill(ctx,x,y,w,h){
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,16);
+  ctx.fill();
+}
+
+function shrinkFontToFit(ctx,text,startSize,maxWidth){
+  let size=startSize;
+  while(size>18){
+    ctx.font=`${size}px MeshFont`;
+    if(ctx.measureText(text).width<=maxWidth) break;
+    size--;
+  }
+  return size;
+}
+
+function drawOverlay(ctx,cw,ch){
+  const overlay = new Image();
+  overlay.src = 'meshoverlay.png';
+  overlay.onload = () => ctx.drawImage(overlay,0,0,cw,ch);
+}
+
+/* ===========================
+   DRAW POST
+=========================== */
+function drawStory(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const cw = canvas.width;
+  const ch = canvas.height;
+
+  const show = shows[showPicker.value];
+  if(!show || !bgData) return;
+
+  ctx.clearRect(0,0,cw,ch);
+
+  const bg = new Image();
+  bg.src = bgData;
+
+  bg.onload = ()=>{
+    const scale = Math.max(cw/bg.naturalWidth, ch/bg.naturalHeight);
+    const sw = cw/scale;
+    const sh = ch/scale;
+
+    ctx.drawImage(
+      bg,
+      (bg.naturalWidth - sw)/2,
+      (bg.naturalHeight - sh)/2,
+      sw, sh,
+      0, 0, cw, ch
+    );
+
+    drawVignette(ctx,cw,ch);
+
+    const guest = guestInput.value.trim();
+    const title = show['Now Playing'];
+
+    const showEqualsDJ =
+      show.DJ &&
+      title.trim().toLowerCase() === show.DJ.trim().toLowerCase();
+
+    let primaryLine = title;
+    let secondaryLine = '';
+
+    if(showEqualsDJ){
+      if(guest) primaryLine = `${title} + ${guest}`;
+    } else {
+      secondaryLine = show.DJ + (guest ? ' + ' + guest : '');
+    }
+
+    const dateStr = new Date(show.Date)
+      .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    const [startRaw,endRaw] = show['A-B'].split('-');
+    const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
+
+    ctx.textBaseline='top';
+
+    ctx.font='64px MeshFont';
+    let primaryW = ctx.measureText(primaryLine).width;
+
+    ctx.font='42px MeshFont';
+    let secondaryW = secondaryLine ? ctx.measureText(secondaryLine).width : 0;
+
+    let pillW = Math.max(primaryW, secondaryW) + (PILL_PADDING_X * 2);
+    let pillX = STORY_POS.x;
+
+    let primarySize = 64;
+    let secondarySize = 42;
+
+    if(pillW > MAX_PILL_WIDTH){
+      const maxTextW = MAX_PILL_WIDTH - (PILL_PADDING_X * 2);
+      primarySize = shrinkFontToFit(ctx, primaryLine, 64, maxTextW);
+      secondarySize = shrinkFontToFit(ctx, secondaryLine, 42, maxTextW);
+      pillW = MAX_PILL_WIDTH;
+      pillX = (cw - pillW) / 2;
+    }
+
+    const pillHeight = secondaryLine ? 140 : 92;
+
+    drawWhitePill(ctx, pillX, STORY_POS.nowPlayingY, pillW, pillHeight);
+
+    ctx.fillStyle='#000';
+    ctx.font = `${primarySize}px MeshFont`;
+    ctx.fillText(primaryLine, pillX + PILL_PADDING_X, STORY_POS.nowPlayingY + 18);
+
+    if(secondaryLine){
+      ctx.globalAlpha=0.75;
+      ctx.font = `${secondarySize}px MeshFont`;
+      ctx.fillText(secondaryLine, pillX + PILL_PADDING_X, STORY_POS.nowPlayingY + 86);
+      ctx.globalAlpha=1;
+    }
+
+const dateY = (showEqualsDJ
+  ? STORY_POS.dateY - DJ_LINE_OFFSET
+  : STORY_POS.dateY) + PILL_VERTICAL_GAP;
+
+    ctx.font='32px MeshFont';
+    const dateW = ctx.measureText(dateStr).width + 40;
+    const timeW = ctx.measureText(timeStr).width + 40;
+
+    const startX = pillX;
+
+    drawWhitePill(ctx, startX, dateY, dateW, 52);
+    drawWhitePill(ctx, startX + dateW + DATE_TIME_GAP, dateY, timeW, 52);
+
+    ctx.fillStyle='#000';
+    ctx.fillText(dateStr, startX + 20, dateY + 10);
+    ctx.fillText(timeStr, startX + dateW + DATE_TIME_GAP + 20, dateY + 10);
+
+    ctx.fillStyle='rgba(255,255,255,0.75)';
+    ctx.font='26px MeshFont';
+    ctx.fillText('meshradio.live', startX, dateY + 70);
+
+    drawOverlay(ctx, cw, ch);
+
+    downloadBtn.disabled=false;
+  };
+}
+
+/* ===========================
+   DOWNLOAD (SAFE)
+=========================== */
+downloadBtn.onclick = async () => {
+  const blob = await new Promise(r => c.toBlob(r,'image/png',1));
+  const filename = 'mesh_instagram_post.png';
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if(!isIOS){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    return;
+  }
+
+  const file = new File([blob], filename, { type:'image/png' });
+  if(navigator.canShare && navigator.canShare({ files:[file] })){
+    try{ await navigator.share({ files:[file] }); return; }catch(e){}
+  }
+
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+};
+
+window.onload=loadShows;
+</script>
+</body>
+</html>
