@@ -166,6 +166,16 @@ function drawWhitePill(ctx,x,y,w,h){
   ctx.fill();
 }
 
+function shrinkFontToFit(ctx,text,startSize,maxWidth){
+  let size=startSize;
+  while(size>18){
+    ctx.font=`${size}px MeshFont`;
+    if(ctx.measureText(text).width<=maxWidth) break;
+    size--;
+  }
+  return size;
+}
+
 /* ===========================
    DRAW POST
 =========================== */
@@ -220,16 +230,28 @@ function drawStory(){
     const [startRaw,endRaw] = show['A-B'].split('-');
     const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
 
+    // Measure pill width
     ctx.font='64px MeshFont';
-    const primaryW = ctx.measureText(primaryLine).width;
+    let primaryW = ctx.measureText(primaryLine).width;
 
     ctx.font='42px MeshFont';
-    const secondaryW = secondaryLine ? ctx.measureText(secondaryLine).width : 0;
+    let secondaryW = secondaryLine ? ctx.measureText(secondaryLine).width : 0;
 
     let pillW = Math.max(primaryW, secondaryW) + (PILL_PADDING_X * 2);
     let pillX = STORY_POS.x;
 
+    let primarySize = 64;
+    let secondarySize = 42;
+
+    // 🔑 ONLY LOGIC CHANGE: shrink font if pill hits max width
     if(pillW > MAX_PILL_WIDTH){
+      const maxTextW = MAX_PILL_WIDTH - (PILL_PADDING_X * 2);
+
+      primarySize = shrinkFontToFit(ctx, primaryLine, 64, maxTextW);
+      secondarySize = secondaryLine
+        ? shrinkFontToFit(ctx, secondaryLine, 42, maxTextW)
+        : 42;
+
       pillW = MAX_PILL_WIDTH;
       pillX = (cw - pillW) / 2;
     }
@@ -239,13 +261,13 @@ function drawStory(){
     drawWhitePill(ctx, pillX, STORY_POS.nowPlayingY, pillW, pillHeight);
 
     ctx.fillStyle='#000';
+    ctx.font = `${primarySize}px MeshFont`;
     ctx.textBaseline='top';
-    ctx.font='64px MeshFont';
     ctx.fillText(primaryLine, pillX + PILL_PADDING_X, STORY_POS.nowPlayingY + 18);
 
     if(secondaryLine){
       ctx.globalAlpha=0.75;
-      ctx.font='42px MeshFont';
+      ctx.font = `${secondarySize}px MeshFont`;
       ctx.fillText(secondaryLine, pillX + PILL_PADDING_X, STORY_POS.nowPlayingY + 86);
       ctx.globalAlpha=1;
     }
@@ -265,13 +287,8 @@ function drawStory(){
     ctx.fillStyle='#000';
     ctx.textBaseline='middle';
     ctx.textAlign='center';
-
     ctx.fillText(dateStr, startX + dateW/2, dateY + 26);
-    ctx.fillText(
-      timeStr,
-      startX + dateW + DATE_TIME_GAP + timeW/2,
-      dateY + 26
-    );
+    ctx.fillText(timeStr, startX + dateW + DATE_TIME_GAP + timeW/2, dateY + 26);
 
     ctx.textAlign='left';
     ctx.fillStyle='rgba(255,255,255,0.75)';
