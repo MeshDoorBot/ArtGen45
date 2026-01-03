@@ -166,24 +166,20 @@ function drawWhitePill(ctx,x,y,w,h){
   ctx.fill();
 }
 
-/* 🔑 SCALE BOTH LINES TOGETHER */
+/* scale both lines together */
 function scaleFontsToFit(ctx, primaryText, secondaryText, maxTextWidth){
   ctx.font = '64px MeshFont';
   const primaryW = ctx.measureText(primaryText).width;
 
   ctx.font = '42px MeshFont';
-  const secondaryW = secondaryText
-    ? ctx.measureText(secondaryText).width
-    : 0;
+  const secondaryW = secondaryText ? ctx.measureText(secondaryText).width : 0;
 
   const widest = Math.max(primaryW, secondaryW);
-
   if(widest <= maxTextWidth){
     return { primarySize: 64, secondarySize: 42 };
   }
 
   const scale = maxTextWidth / widest;
-
   return {
     primarySize: Math.floor(64 * scale),
     secondarySize: Math.floor(42 * scale)
@@ -238,13 +234,6 @@ function drawStory(){
       secondaryLine = show.DJ + (guest ? ' + ' + guest : '');
     }
 
-    const dateStr = new Date(show.Date)
-      .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-
-    const [startRaw,endRaw] = show['A-B'].split('-');
-    const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
-
-    /* === MAIN PILL SCALING === */
     const maxTextW = MAX_PILL_WIDTH - (PILL_PADDING_X * 2);
     const sizes = scaleFontsToFit(ctx, primaryLine, secondaryLine, maxTextW);
 
@@ -263,13 +252,21 @@ function drawStory(){
     }
 
     const pillHeight = secondaryLine ? 140 : 92;
+    const pillY = STORY_POS.nowPlayingY;
+    const pillCenterY = pillY + pillHeight / 2;
+    const lineGap = sizes.secondarySize ? sizes.secondarySize * 0.8 : 0;
 
-    drawWhitePill(ctx, pillX, STORY_POS.nowPlayingY, pillW, pillHeight);
+    drawWhitePill(ctx, pillX, pillY, pillW, pillHeight);
 
     ctx.fillStyle='#000';
-    ctx.textBaseline='top';
+    ctx.textBaseline='middle';
+
     ctx.font = `${sizes.primarySize}px MeshFont`;
-    ctx.fillText(primaryLine, pillX + PILL_PADDING_X, STORY_POS.nowPlayingY + 18);
+    ctx.fillText(
+      primaryLine,
+      pillX + PILL_PADDING_X,
+      secondaryLine ? pillCenterY - lineGap/2 : pillCenterY
+    );
 
     if(secondaryLine){
       ctx.globalAlpha=0.75;
@@ -277,12 +274,17 @@ function drawStory(){
       ctx.fillText(
         secondaryLine,
         pillX + PILL_PADDING_X,
-        STORY_POS.nowPlayingY + 86
+        pillCenterY + lineGap/2
       );
       ctx.globalAlpha=1;
     }
 
-    /* === DATE / TIME PILLS === */
+    const dateStr = new Date(show.Date)
+      .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    const [startRaw,endRaw] = show['A-B'].split('-');
+    const timeStr = `${to12h(startRaw)} → ${to12h(endRaw)}`;
+
     const dateY = (showEqualsDJ
       ? STORY_POS.dateY - DJ_LINE_OFFSET
       : STORY_POS.dateY) + PILL_VERTICAL_GAP;
@@ -296,14 +298,10 @@ function drawStory(){
     drawWhitePill(ctx, startX + dateW + DATE_TIME_GAP, dateY, timeW, 52);
 
     ctx.fillStyle='#000';
-    ctx.textBaseline='middle';
     ctx.textAlign='center';
+    ctx.textBaseline='middle';
     ctx.fillText(dateStr, startX + dateW/2, dateY + 26);
-    ctx.fillText(
-      timeStr,
-      startX + dateW + DATE_TIME_GAP + timeW/2,
-      dateY + 26
-    );
+    ctx.fillText(timeStr, startX + dateW + DATE_TIME_GAP + timeW/2, dateY + 26);
 
     ctx.textAlign='left';
     ctx.fillStyle='rgba(255,255,255,0.75)';
