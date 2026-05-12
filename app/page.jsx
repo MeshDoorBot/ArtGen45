@@ -72,6 +72,7 @@ async function decodeUpload(file) {
 
 export default function ArtGenerator() {
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const imageRef = useRef(null);
   const logoRef = useRef(null);
   const [shows, setShows] = useState([]);
@@ -88,7 +89,6 @@ export default function ArtGenerator() {
   const [uploadError, setUploadError] = useState('');
   const [showPills, setShowPills] = useState(true);
   const [showLogo, setShowLogo] = useState(true);
-  const [bottomExpanded, setBottomExpanded] = useState(false);
   const [logoReady, setLogoReady] = useState(false);
 
   const hasInfo = Boolean(info.title.trim());
@@ -198,6 +198,10 @@ export default function ArtGenerator() {
     await renderCurrentArtwork();
   };
 
+  const onPickImage = () => {
+    fileInputRef.current?.click();
+  };
+
   const onDownload = async () => {
     const canvas = canvasRef.current;
     if (!canvas || !downloadReady) return;
@@ -240,20 +244,16 @@ export default function ArtGenerator() {
   const mobileStep = selectedShow ? (hasImage ? 'controls' : 'image') : 'show';
   const previewPrompt = selectedShow ? (hasImage ? 'Rendering preview' : 'Pick artwork') : 'Pick your show';
 
-  useEffect(() => {
-    setBottomExpanded(false);
-  }, [mobileStep]);
-
   return (
     <main className="shell">
-      <section className="panel" data-mobile-step={mobileStep} data-expanded={bottomExpanded ? 'true' : 'false'}>
+      <section className="panel" data-mobile-step={mobileStep}>
         <div className="masthead">
           <h1>Mesh Art Generator</h1>
           <p>Square posts and story-safe artwork for DJs.</p>
         </div>
 
         <div className="stack">
-          <div className="statusRow controlControls advancedControl" aria-label="Generator readiness">
+          <div className="statusRow desktopOnly" aria-label="Generator readiness">
             <span className={hasInfo ? 'statusItem isReady' : 'statusItem'}>Info</span>
             <span className={hasImage ? 'statusItem isReady' : 'statusItem'}>Image</span>
             <span className={downloadReady ? 'statusItem isReady' : 'statusItem'}>Ready</span>
@@ -271,14 +271,45 @@ export default function ArtGenerator() {
             </select>
           </div>
 
-          <div className="grid-2 controlControls advancedControl compactFormatControl">
+          <div className="formatControl controlControls">
             <div>
               <label htmlFor="formatPicker">Format</label>
               <select id="formatPicker" value={format} onChange={(event) => setFormat(event.target.value)}>
                 <option value="square">Square 1:1</option>
+                <option value="post">Post 4:5</option>
                 <option value="story">Story 9:16</option>
               </select>
             </div>
+          </div>
+
+          <div className="mobileFormatButtons controlControls" aria-label="Artwork format">
+            <button
+              type="button"
+              className={format === 'square' ? 'isActive' : ''}
+              onClick={() => setFormat('square')}
+              aria-pressed={format === 'square'}
+            >
+              Square
+            </button>
+            <button
+              type="button"
+              className={format === 'post' ? 'isActive' : ''}
+              onClick={() => setFormat('post')}
+              aria-pressed={format === 'post'}
+            >
+              Post
+            </button>
+            <button
+              type="button"
+              className={format === 'story' ? 'isActive' : ''}
+              onClick={() => setFormat('story')}
+              aria-pressed={format === 'story'}
+            >
+              Story
+            </button>
+          </div>
+
+          <div className="grid-2 controlControls desktopAdvanced">
             <div>
               <label htmlFor="layoutPicker">Layout</label>
               <select id="layoutPicker" value={layout} onChange={(event) => setLayout(event.target.value)}>
@@ -288,7 +319,7 @@ export default function ArtGenerator() {
             </div>
           </div>
 
-          <label className="toggleRow controlControls advancedControl" htmlFor="pillToggle">
+          <label className="toggleRow controlControls desktopAdvanced" htmlFor="pillToggle">
             <span>Text pills</span>
             <input
               id="pillToggle"
@@ -298,7 +329,7 @@ export default function ArtGenerator() {
             />
           </label>
 
-          <label className="toggleRow controlControls advancedControl" htmlFor="logoToggle">
+          <label className="toggleRow controlControls desktopAdvanced" htmlFor="logoToggle">
             <span>Mesh logo</span>
             <input
               id="logoToggle"
@@ -308,22 +339,65 @@ export default function ArtGenerator() {
             />
           </label>
 
+          <input ref={fileInputRef} id="uploadInput" className="visuallyHiddenFile" type="file" accept="image/*" onChange={onImageChange} />
+
+          <div className="controlImage">
+            <label htmlFor="uploadInput">Artwork image</label>
+            <button type="button" className="primary" disabled={!selectedShow} onClick={onPickImage}>
+              {hasImage ? 'Change image' : 'Pick artwork'}
+            </button>
+            {imageName && <div className="fieldNote">{imageName}</div>}
+            {uploadError && <div className="fieldError">{uploadError}</div>}
+          </div>
+
           {hasRendered && (
             <button
               type="button"
-              className="secondary controlControls advancedControl"
+              className="secondary controlControls desktopAdvanced"
               aria-expanded={editorOpen}
-              onClick={() => {
-                setEditorOpen((open) => !open);
-                setBottomExpanded(true);
-              }}
+              onClick={() => setEditorOpen(true)}
             >
-              {editorOpen ? 'Hide edit tools' : 'Edit info'}
+              Edit info
             </button>
           )}
 
-          {editorOpen && (
-            <div className="editor controlControls advancedControl">
+          <div className="actions controlControls desktopActions">
+            <button type="button" className="primary" disabled={!canRender} onClick={onRender}>
+              Render
+            </button>
+            <button type="button" className="secondary" disabled={!downloadReady} onClick={onDownload}>
+              Download
+            </button>
+          </div>
+
+          <div className="mobileActions controlControls">
+            <button type="button" className="secondary" onClick={onPickImage}>
+              Change image
+            </button>
+            <button type="button" className="secondary" disabled={!hasInfo} onClick={() => setEditorOpen(true)}>
+              Edit
+            </button>
+            <button type="button" className="primary" disabled={!downloadReady} onClick={onDownload}>
+              Download
+            </button>
+          </div>
+
+          <div className="hint controlControls desktopAdvanced">
+            Select a show, upload artwork, generate, then use Edit info for corrections.
+          </div>
+        </div>
+      </section>
+
+      {editorOpen && (
+        <div className="drawerBackdrop" onClick={() => setEditorOpen(false)}>
+          <section className="editDrawer" aria-label="Edit show info" onClick={(event) => event.stopPropagation()}>
+            <div className="drawerHeader">
+              <h2>Edit info</h2>
+              <button type="button" className="secondary" onClick={() => setEditorOpen(false)}>
+                Done
+              </button>
+            </div>
+            <div className="editor">
               <div>
                 <label htmlFor="titleInput">Show title</label>
                 <input id="titleInput" value={info.title} onChange={updateInfo('title')} placeholder="Show title" />
@@ -352,39 +426,37 @@ export default function ArtGenerator() {
                   <input id="endInput" type="time" value={info.end} onChange={updateInfo('end')} />
                 </div>
               </div>
+              <div className="grid-2">
+                <div>
+                  <label htmlFor="drawerLayoutPicker">Text position</label>
+                  <select id="drawerLayoutPicker" value={layout} onChange={(event) => setLayout(event.target.value)}>
+                    <option value="lower">Lower text</option>
+                    <option value="center">Center text</option>
+                  </select>
+                </div>
+                <label className="toggleRow" htmlFor="drawerLogoToggle">
+                  <span>Mesh logo</span>
+                  <input
+                    id="drawerLogoToggle"
+                    type="checkbox"
+                    checked={showLogo}
+                    onChange={(event) => setShowLogo(event.target.checked)}
+                  />
+                </label>
+              </div>
+              <label className="toggleRow" htmlFor="drawerPillToggle">
+                <span>Text pills</span>
+                <input
+                  id="drawerPillToggle"
+                  type="checkbox"
+                  checked={showPills}
+                  onChange={(event) => setShowPills(event.target.checked)}
+                />
+              </label>
             </div>
-          )}
-
-          <div className="controlImage advancedControl">
-            <label htmlFor="uploadInput">Artwork image</label>
-            <input id="uploadInput" type="file" accept="image/*" onChange={onImageChange} />
-            {imageName && <div className="fieldNote">{imageName}</div>}
-            {uploadError && <div className="fieldError">{uploadError}</div>}
-          </div>
-
-          <div className="actions controlControls">
-            <button type="button" className="primary" disabled={!canRender} onClick={onRender}>
-              Render
-            </button>
-            <button type="button" className="secondary" disabled={!downloadReady} onClick={onDownload}>
-              Download
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="secondary mobileExpandToggle controlControls"
-            onClick={() => setBottomExpanded((open) => !open)}
-            aria-expanded={bottomExpanded}
-          >
-            {bottomExpanded ? 'Less' : 'More controls'}
-          </button>
-
-          <div className="hint controlControls advancedControl">
-            Select a show, upload artwork, generate, then use Edit info for corrections.
-          </div>
+          </section>
         </div>
-      </section>
+      )}
 
       <section className="preview" aria-label="Artwork preview">
         <div className="canvasWrap">
