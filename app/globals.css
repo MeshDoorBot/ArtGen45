@@ -368,16 +368,21 @@ canvas {
   inset: 0;
   display: grid;
   place-items: center;
-  pointer-events: none;
 }
 
-.previewEmpty span {
+.previewEmpty span,
+.previewEmpty button {
   padding: 10px 14px;
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 6px;
   color: var(--muted);
   background: rgba(255,255,255,0.07);
   font-size: 12px;
+}
+
+.previewEmpty button {
+  min-height: 0;
+  cursor: pointer;
 }
 
 .fieldNote,

@@ -79,6 +79,7 @@ async function decodeUpload(file) {
 
 export default function ArtGenerator() {
   const canvasRef = useRef(null);
+  const showPickerRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageRef = useRef(null);
   const logoRef = useRef(null);
@@ -240,7 +241,24 @@ export default function ArtGenerator() {
   };
 
   const onPickImage = () => {
-    fileInputRef.current?.click();
+    const input = fileInputRef.current;
+    if (!input) return;
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+        return;
+      }
+    } catch {}
+    input.click();
+  };
+
+  const onPickShow = () => {
+    const picker = showPickerRef.current;
+    if (!picker || picker.disabled) return;
+    picker.focus();
+    try {
+      picker.showPicker?.();
+    } catch {}
   };
 
   const updateImageTweak = (nextTweak) => {
@@ -316,7 +334,7 @@ export default function ArtGenerator() {
 
           <div className="controlShow">
             <label htmlFor="showPicker">Show</label>
-            <select id="showPicker" value={selectedShow} onChange={onShowChange} disabled={!shows.length}>
+            <select ref={showPickerRef} id="showPicker" value={selectedShow} onChange={onShowChange} disabled={!shows.length}>
               <option value="">{showPlaceholder}</option>
               {shows.map((show, index) => (
                 <option key={`${show?.Date}-${show?.['Now Playing']}-${index}`} value={index}>
@@ -629,7 +647,17 @@ export default function ArtGenerator() {
           <canvas ref={canvasRef} width={FORMATS.square.width * EXPORT_SCALE} height={FORMATS.square.height * EXPORT_SCALE} />
           {!hasRendered && (
             <div className="previewEmpty">
-              <span>{previewPrompt}</span>
+              {!selectedShow ? (
+                <button type="button" onClick={onPickShow} disabled={!shows.length}>
+                  {previewPrompt}
+                </button>
+              ) : !hasImage ? (
+                <button type="button" onClick={onPickImage}>
+                  {previewPrompt}
+                </button>
+              ) : (
+                <span>{previewPrompt}</span>
+              )}
             </div>
           )}
         </div>
