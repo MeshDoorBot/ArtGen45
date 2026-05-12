@@ -40,13 +40,15 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 button,
 select,
-input {
+input,
+textarea {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -56,9 +58,17 @@ input {
 }
 
 select,
-input {
+input,
+textarea {
   width: 100%;
   padding: 0 12px;
+}
+
+textarea {
+  min-height: 180px;
+  padding: 12px;
+  resize: vertical;
+  line-height: 1.35;
 }
 
 input[type="checkbox"] {
@@ -185,6 +195,22 @@ label {
 
 .secondary {
   background: rgba(255,255,255,0.08);
+}
+
+.downloadButton {
+  border-color: transparent;
+  background: #20e070;
+  color: #041108;
+}
+
+.tracklistControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.tracklistControls[data-has-tracklist="true"] {
+  grid-template-columns: 1fr 1fr;
 }
 
 .mobileExpandToggle {
@@ -315,6 +341,16 @@ canvas {
   color: #ffb4b4;
 }
 
+.selectedShowNote {
+  margin-bottom: 8px;
+  overflow: hidden;
+  color: rgba(255,255,255,0.78);
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .hint {
   color: var(--muted);
   font-size: 12px;
@@ -330,14 +366,14 @@ canvas {
     grid-template-columns: 1fr;
     width: 100vw;
     min-height: 100vh;
-    padding: 0 0 132px;
+    padding: 0 0 172px;
     gap: 0;
   }
 
   .preview {
     order: 1;
     align-items: center;
-    min-height: calc(100vh - 132px);
+    min-height: calc(100vh - 172px);
     padding: 10px;
   }
 
@@ -347,7 +383,7 @@ canvas {
 
   canvas {
     width: min(100%, 520px);
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 190px);
     border-radius: 0;
   }
 
@@ -358,7 +394,7 @@ canvas {
     bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 20;
     order: 2;
-    max-height: 124px;
+    max-height: 164px;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 12px;
@@ -423,11 +459,11 @@ canvas {
   }
 
   .panel[data-mobile-step="image"] {
-    max-height: 92px;
+    max-height: 114px;
   }
 
   .panel[data-mobile-step="show"] .stack,
-  .panel[data-mobile-step="image"] .stack {
+  .panel[data-mobile-step="show"] .stack {
     gap: 0;
   }
 
@@ -442,7 +478,8 @@ canvas {
 
   button,
   select,
-  input {
+  input,
+  textarea {
     min-height: 38px;
   }
 
@@ -456,6 +493,17 @@ canvas {
   }
 
   .mobileActions button {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .tracklistControls {
+    gap: 8px;
+  }
+
+  .tracklistControls button {
+    min-height: 34px;
     min-width: 0;
     padding: 0 8px;
     font-size: 12px;
@@ -491,12 +539,12 @@ canvas {
   }
 
   .preview {
-    min-height: calc(100vh - 132px);
+    min-height: calc(100vh - 172px);
     padding: 8px;
   }
 
   canvas {
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 190px);
   }
 
   .grid-2 {

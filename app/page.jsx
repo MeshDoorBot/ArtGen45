@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FORMATS, renderArtwork } from '../lib/renderArtwork';
+import { EXPORT_SCALE, FORMATS, renderArtwork } from '../lib/renderArtwork';
 
 const SHOWS_URL = 'https://script.google.com/macros/s/AKfycbw3QgJtZXB48I0BUMpTE5Dlo2kqMReNuD4jbiEVBaB1z49bSgzEkAgixkjHxwTKRwY0/exec';
+const SHOWS_CACHE_KEY = 'mesh-art-generator-shows-v1';
 
 const emptyInfo = {
   title: '',
@@ -82,6 +83,9 @@ export default function ArtGenerator() {
   const [hasImage, setHasImage] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [tracklistOpen, setTracklistOpen] = useState(false);
+  const [tracklist, setTracklist] = useState('');
+  const [tracklistEnabled, setTracklistEnabled] = useState(true);
   const [downloadReady, setDownloadReady] = useState(false);
   const [loadingShows, setLoadingShows] = useState(true);
   const [imageName, setImageName] = useState('');
@@ -95,6 +99,19 @@ export default function ArtGenerator() {
 
   useEffect(() => {
     let cancelled = false;
+    const cachedShows = window.localStorage.getItem(SHOWS_CACHE_KEY);
+    if (cachedShows) {
+      try {
+        const parsedShows = JSON.parse(cachedShows);
+        if (Array.isArray(parsedShows) && parsedShows.length) {
+          setShows(parsedShows);
+          setLoadingShows(false);
+        }
+      } catch {
+        window.localStorage.removeItem(SHOWS_CACHE_KEY);
+      }
+    }
+
     const logo = new Image();
     logo.onload = () => {
       if (!cancelled) {
@@ -102,7 +119,7 @@ export default function ArtGenerator() {
         setLogoReady(true);
       }
     };
-    logo.src = '/logo-white.svg';
+    logo.src = '/logo-white.png';
 
     fetch(SHOWS_URL)
       .then((res) => {
@@ -110,7 +127,13 @@ export default function ArtGenerator() {
         return res.json();
       })
       .then((data) => {
-        if (!cancelled) setShows(Array.isArray(data) ? data : []);
+        if (!cancelled) {
+          const nextShows = Array.isArray(data) ? data : [];
+          setShows(nextShows);
+          if (nextShows.length) {
+            window.localStorage.setItem(SHOWS_CACHE_KEY, JSON.stringify(nextShows));
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setShows([]);
@@ -133,22 +156,25 @@ export default function ArtGenerator() {
       formatKey: format,
       layoutKey: 'lower',
       showPills,
-      showLogo
+      showLogo,
+      tracklist: tracklistEnabled ? tracklist : ''
     });
     setHasRendered(true);
     setDownloadReady(true);
     return true;
-  }, [canRender, format, info, logoReady, showLogo, showPills]);
+  }, [canRender, format, info, logoReady, showLogo, showPills, tracklist, tracklistEnabled]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const currentFormat = FORMATS[format] || FORMATS.square;
-    if (canvas && (canvas.width !== currentFormat.width || canvas.height !== currentFormat.height)) {
-      canvas.width = currentFormat.width;
-      canvas.height = currentFormat.height;
+    const outputWidth = currentFormat.width * EXPORT_SCALE;
+    const outputHeight = currentFormat.height * EXPORT_SCALE;
+    if (canvas && (canvas.width !== outputWidth || canvas.height !== outputHeight)) {
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
     }
     setDownloadReady(false);
-  }, [format, info, showPills, showLogo]);
+  }, [format, info, showPills, showLogo, tracklist, tracklistEnabled]);
 
   useEffect(() => {
     if (!canRender) return;
@@ -172,6 +198,12 @@ export default function ArtGenerator() {
 
   const updateInfo = (field) => (event) => {
     setInfo((current) => ({ ...current, [field]: event.target.value }));
+    setDownloadReady(false);
+  };
+
+  const onTracklistChange = (event) => {
+    setTracklist(event.target.value);
+    setTracklistEnabled(true);
     setDownloadReady(false);
   };
 
@@ -240,6 +272,7 @@ export default function ArtGenerator() {
     if (loadingShows) return 'Loading shows...';
     return shows.length ? 'Select a show' : 'No shows found';
   }, [loadingShows, shows.length]);
+  const selectedShowLabel = selectedShow ? formatShowOption(shows[Number(selectedShow)]) : '';
   const mobileStep = selectedShow ? (hasImage ? 'controls' : 'image') : 'show';
   const previewPrompt = selectedShow ? (hasImage ? 'Rendering preview' : 'Pick artwork') : 'Pick your show';
 
@@ -331,6 +364,7 @@ export default function ArtGenerator() {
           <input ref={fileInputRef} id="uploadInput" className="visuallyHiddenFile" type="file" accept="image/*" onChange={onImageChange} />
 
           <div className="controlImage">
+            {selectedShowLabel && !hasImage && <div className="selectedShowNote">{selectedShowLabel}</div>}
             <label htmlFor="uploadInput">Artwork image</label>
             <button type="button" className="primary" disabled={!selectedShow} onClick={onPickImage}>
               {hasImage ? 'Change image' : 'Pick artwork'}
@@ -346,15 +380,39 @@ export default function ArtGenerator() {
               aria-expanded={editorOpen}
               onClick={() => setEditorOpen(true)}
             >
-              Edit info
+              Edit + add guests
             </button>
           )}
+
+          <div className="tracklistControls controlControls" data-has-tracklist={tracklist.trim() ? 'true' : 'false'}>
+            <button
+              type="button"
+              className="secondary"
+              disabled={!hasInfo}
+              onClick={() => setTracklistOpen(true)}
+            >
+              {tracklist.trim() ? 'Edit tracklist' : '+ Tracklist'}
+            </button>
+
+            {tracklist.trim() && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setTracklistEnabled((enabled) => !enabled);
+                  setDownloadReady(false);
+                }}
+              >
+                {tracklistEnabled ? 'Normal view' : 'Tracklist view'}
+              </button>
+            )}
+          </div>
 
           <div className="actions controlControls desktopActions">
             <button type="button" className="primary" disabled={!canRender} onClick={onRender}>
               Render
             </button>
-            <button type="button" className="secondary" disabled={!downloadReady} onClick={onDownload}>
+            <button type="button" className="downloadButton" disabled={!downloadReady} onClick={onDownload}>
               Download
             </button>
           </div>
@@ -364,24 +422,59 @@ export default function ArtGenerator() {
               Change image
             </button>
             <button type="button" className="secondary" disabled={!hasInfo} onClick={() => setEditorOpen(true)}>
-              Edit
+              Edit + add guests
             </button>
-            <button type="button" className="primary" disabled={!downloadReady} onClick={onDownload}>
+            <button type="button" className="downloadButton" disabled={!downloadReady} onClick={onDownload}>
               Download
             </button>
           </div>
 
           <div className="hint controlControls desktopAdvanced">
-            Select a show, upload artwork, generate, then use Edit info for corrections.
+            Select a show, upload artwork, generate, then use Edit + add guests for corrections.
           </div>
         </div>
       </section>
+
+      {tracklistOpen && (
+        <div className="drawerBackdrop" onClick={() => setTracklistOpen(false)}>
+          <section className="editDrawer" aria-label="Add tracklist" onClick={(event) => event.stopPropagation()}>
+            <div className="drawerHeader">
+              <h2>Tracklist</h2>
+              <button type="button" className="secondary" onClick={() => setTracklistOpen(false)}>
+                Done
+              </button>
+            </div>
+            <div className="editor">
+              <div>
+                <label htmlFor="tracklistInput">Tracks</label>
+                <textarea
+                  id="tracklistInput"
+                  value={tracklist}
+                  onChange={onTracklistChange}
+                  placeholder="One track per line"
+                  rows={10}
+                />
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setTracklist('');
+                  setDownloadReady(false);
+                }}
+              >
+                Clear tracklist
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {editorOpen && (
         <div className="drawerBackdrop" onClick={() => setEditorOpen(false)}>
           <section className="editDrawer" aria-label="Edit show info" onClick={(event) => event.stopPropagation()}>
             <div className="drawerHeader">
-              <h2>Edit info</h2>
+              <h2>Edit + add guests</h2>
               <button type="button" className="secondary" onClick={() => setEditorOpen(false)}>
                 Done
               </button>
@@ -440,7 +533,7 @@ export default function ArtGenerator() {
 
       <section className="preview" aria-label="Artwork preview">
         <div className="canvasWrap">
-          <canvas ref={canvasRef} width={FORMATS.square.width} height={FORMATS.square.height} />
+          <canvas ref={canvasRef} width={FORMATS.square.width * EXPORT_SCALE} height={FORMATS.square.height * EXPORT_SCALE} />
           {!hasRendered && (
             <div className="previewEmpty">
               <span>{previewPrompt}</span>
