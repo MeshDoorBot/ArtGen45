@@ -15,6 +15,12 @@ const emptyInfo = {
   guest: ''
 };
 
+const defaultImageTweak = {
+  x: 0,
+  y: 0,
+  zoom: 1
+};
+
 function toDateInputValue(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -83,6 +89,7 @@ export default function ArtGenerator() {
   const [hasImage, setHasImage] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [imageTweakOpen, setImageTweakOpen] = useState(false);
   const [tracklistOpen, setTracklistOpen] = useState(false);
   const [tracklist, setTracklist] = useState('');
   const [tracklistEnabled, setTracklistEnabled] = useState(true);
@@ -93,6 +100,7 @@ export default function ArtGenerator() {
   const [showPills, setShowPills] = useState(true);
   const [showLogo, setShowLogo] = useState(true);
   const [logoReady, setLogoReady] = useState(false);
+  const [imageTweak, setImageTweak] = useState(defaultImageTweak);
 
   const hasInfo = Boolean(info.title.trim());
   const canRender = hasImage && hasInfo;
@@ -157,12 +165,13 @@ export default function ArtGenerator() {
       layoutKey: 'lower',
       showPills,
       showLogo,
+      imageTweak,
       tracklist: tracklistEnabled ? tracklist : ''
     });
     setHasRendered(true);
     setDownloadReady(true);
     return true;
-  }, [canRender, format, info, logoReady, showLogo, showPills, tracklist, tracklistEnabled]);
+  }, [canRender, format, imageTweak, info, logoReady, showLogo, showPills, tracklist, tracklistEnabled]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -174,7 +183,7 @@ export default function ArtGenerator() {
       canvas.height = outputHeight;
     }
     setDownloadReady(false);
-  }, [format, info, showPills, showLogo, tracklist, tracklistEnabled]);
+  }, [format, imageTweak, info, showPills, showLogo, tracklist, tracklistEnabled]);
 
   useEffect(() => {
     if (!canRender) return;
@@ -214,6 +223,7 @@ export default function ArtGenerator() {
     setHasImage(false);
     setUploadError('');
     setImageName(file.name);
+    setImageTweak(defaultImageTweak);
     setDownloadReady(false);
     try {
       imageRef.current = await decodeUpload(file);
@@ -231,6 +241,19 @@ export default function ArtGenerator() {
 
   const onPickImage = () => {
     fileInputRef.current?.click();
+  };
+
+  const updateImageTweak = (nextTweak) => {
+    setImageTweak((current) => ({
+      x: Math.max(-600, Math.min(600, nextTweak.x ?? current.x)),
+      y: Math.max(-900, Math.min(900, nextTweak.y ?? current.y)),
+      zoom: Math.max(1, Math.min(2.5, nextTweak.zoom ?? current.zoom))
+    }));
+    setDownloadReady(false);
+  };
+
+  const nudgeImage = (x, y) => {
+    updateImageTweak({ x: imageTweak.x + x, y: imageTweak.y + y });
   };
 
   const onDownload = async () => {
@@ -374,14 +397,24 @@ export default function ArtGenerator() {
           </div>
 
           {hasRendered && (
-            <button
-              type="button"
-              className="secondary controlControls desktopAdvanced"
-              aria-expanded={editorOpen}
-              onClick={() => setEditorOpen(true)}
-            >
-              Edit + add guests
-            </button>
+            <div className="editButtonGrid controlControls desktopAdvanced">
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={editorOpen}
+                onClick={() => setEditorOpen(true)}
+              >
+                Edit + add guests
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={imageTweakOpen}
+                onClick={() => setImageTweakOpen(true)}
+              >
+                Move/enlarge image
+              </button>
+            </div>
           )}
 
           <div className="tracklistControls controlControls" data-has-tracklist={tracklist.trim() ? 'true' : 'false'}>
@@ -423,6 +456,9 @@ export default function ArtGenerator() {
             </button>
             <button type="button" className="secondary" disabled={!hasInfo} onClick={() => setEditorOpen(true)}>
               Edit + add guests
+            </button>
+            <button type="button" className="secondary" disabled={!hasImage} onClick={() => setImageTweakOpen(true)}>
+              Move/enlarge image
             </button>
             <button type="button" className="downloadButton" disabled={!downloadReady} onClick={onDownload}>
               Download
@@ -526,6 +562,63 @@ export default function ArtGenerator() {
                   onChange={(event) => setShowPills(!event.target.checked)}
                 />
               </label>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {imageTweakOpen && (
+        <div className="drawerBackdrop" onClick={() => setImageTweakOpen(false)}>
+          <section className="editDrawer imageTweakDrawer" aria-label="Move and enlarge artwork image" onClick={(event) => event.stopPropagation()}>
+            <div className="drawerHeader">
+              <h2>Move/enlarge image</h2>
+              <button type="button" className="secondary" onClick={() => setImageTweakOpen(false)}>
+                Done
+              </button>
+            </div>
+            <div className="editor imageTweakEditor">
+              <div className="nudgePad" aria-label="Move image">
+                <button type="button" className="secondary" aria-label="Move image up" onClick={() => nudgeImage(0, -36)}>
+                  ^
+                </button>
+                <button type="button" className="secondary" aria-label="Move image left" onClick={() => nudgeImage(-36, 0)}>
+                  &lt;
+                </button>
+                <button type="button" className="secondary" aria-label="Move image right" onClick={() => nudgeImage(36, 0)}>
+                  &gt;
+                </button>
+                <button type="button" className="secondary" aria-label="Move image down" onClick={() => nudgeImage(0, 36)}>
+                  v
+                </button>
+              </div>
+              <div>
+                <label htmlFor="imageZoom">Zoom</label>
+                <input
+                  id="imageZoom"
+                  type="range"
+                  min="1"
+                  max="2.5"
+                  step="0.01"
+                  value={imageTweak.zoom}
+                  onChange={(event) => updateImageTweak({ zoom: Number(event.target.value) })}
+                />
+              </div>
+              <div className="imageTweakActions">
+                <button type="button" className="secondary" onClick={() => updateImageTweak(defaultImageTweak)}>
+                  Fit canvas
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!canRender}
+                  onClick={async () => {
+                    await renderCurrentArtwork();
+                    setImageTweakOpen(false);
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           </section>
         </div>
