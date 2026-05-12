@@ -78,7 +78,6 @@ export default function ArtGenerator() {
   const [shows, setShows] = useState([]);
   const [selectedShow, setSelectedShow] = useState('');
   const [format, setFormat] = useState('square');
-  const [layout, setLayout] = useState('lower');
   const [info, setInfo] = useState(emptyInfo);
   const [hasImage, setHasImage] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
@@ -132,14 +131,14 @@ export default function ArtGenerator() {
       logo: logoRef.current,
       info,
       formatKey: format,
-      layoutKey: layout,
+      layoutKey: 'lower',
       showPills,
       showLogo
     });
     setHasRendered(true);
     setDownloadReady(true);
     return true;
-  }, [canRender, format, info, layout, logoReady, showLogo, showPills]);
+  }, [canRender, format, info, logoReady, showLogo, showPills]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -149,7 +148,7 @@ export default function ArtGenerator() {
       canvas.height = currentFormat.height;
     }
     setDownloadReady(false);
-  }, [format, layout, info, showPills, showLogo]);
+  }, [format, info, showPills, showLogo]);
 
   useEffect(() => {
     if (!canRender) return;
@@ -309,23 +308,13 @@ export default function ArtGenerator() {
             </button>
           </div>
 
-          <div className="grid-2 controlControls desktopAdvanced">
-            <div>
-              <label htmlFor="layoutPicker">Layout</label>
-              <select id="layoutPicker" value={layout} onChange={(event) => setLayout(event.target.value)}>
-                <option value="lower">Lower text</option>
-                <option value="center">Center text</option>
-              </select>
-            </div>
-          </div>
-
           <label className="toggleRow controlControls desktopAdvanced" htmlFor="pillToggle">
-            <span>Text pills</span>
+            <span>Clean view</span>
             <input
               id="pillToggle"
               type="checkbox"
-              checked={showPills}
-              onChange={(event) => setShowPills(event.target.checked)}
+              checked={!showPills}
+              onChange={(event) => setShowPills(!event.target.checked)}
             />
           </label>
 
@@ -426,31 +415,22 @@ export default function ArtGenerator() {
                   <input id="endInput" type="time" value={info.end} onChange={updateInfo('end')} />
                 </div>
               </div>
-              <div className="grid-2">
-                <div>
-                  <label htmlFor="drawerLayoutPicker">Text position</label>
-                  <select id="drawerLayoutPicker" value={layout} onChange={(event) => setLayout(event.target.value)}>
-                    <option value="lower">Lower text</option>
-                    <option value="center">Center text</option>
-                  </select>
-                </div>
-                <label className="toggleRow" htmlFor="drawerLogoToggle">
-                  <span>Mesh logo</span>
-                  <input
-                    id="drawerLogoToggle"
-                    type="checkbox"
-                    checked={showLogo}
-                    onChange={(event) => setShowLogo(event.target.checked)}
-                  />
-                </label>
-              </div>
-              <label className="toggleRow" htmlFor="drawerPillToggle">
-                <span>Text pills</span>
+              <label className="toggleRow" htmlFor="drawerLogoToggle">
+                <span>Mesh logo</span>
                 <input
-                  id="drawerPillToggle"
+                  id="drawerLogoToggle"
                   type="checkbox"
-                  checked={showPills}
-                  onChange={(event) => setShowPills(event.target.checked)}
+                  checked={showLogo}
+                  onChange={(event) => setShowLogo(event.target.checked)}
+                />
+              </label>
+              <label className="toggleRow" htmlFor="drawerCleanToggle">
+                <span>Clean view</span>
+                <input
+                  id="drawerCleanToggle"
+                  type="checkbox"
+                  checked={!showPills}
+                  onChange={(event) => setShowPills(!event.target.checked)}
                 />
               </label>
             </div>
