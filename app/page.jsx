@@ -53,6 +53,48 @@ function formatShowOption(show) {
   return `${label} — ${show?.['Now Playing'] || 'Untitled show'}`;
 }
 
+function cleanShowId(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+
+function showMatchesId(show, showId) {
+  if (!showId) return false;
+  return [
+    show?.showId,
+    show?.showID,
+    show?.show_id,
+    show?.['Show ID'],
+    show?.['ShowID'],
+    show?.['Show Id']
+  ].some((value) => cleanShowId(value) === showId);
+}
+
+function showDateTime(show) {
+  const date = new Date(show?.Date);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function findShowIndexById(shows, showId) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const matches = shows
+    .map((show, index) => ({ show, index, time: showDateTime(show) }))
+    .filter(({ show }) => showMatchesId(show, showId));
+
+  if (!matches.length) return -1;
+
+  const future = matches
+    .filter(({ time }) => time !== null && time >= today.getTime())
+    .sort((a, b) => a.time - b.time);
+  if (future.length) return future[0].index;
+
+  const past = matches
+    .filter(({ time }) => time !== null)
+    .sort((a, b) => b.time - a.time);
+  return past.length ? past[0].index : matches[0].index;
+}
+
 async function decodeUpload(file) {
   if ('createImageBitmap' in window) {
     try {
@@ -102,6 +144,11 @@ export default function ArtGenerator() {
   const [showLogo, setShowLogo] = useState(true);
   const [logoReady, setLogoReady] = useState(false);
   const [imageTweak, setImageTweak] = useState(defaultImageTweak);
+  const [initialShowId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return cleanShowId(params.get('showId') || params.get('showID') || params.get('id'));
+  });
 
   const hasInfo = Boolean(info.title.trim());
   const canRender = hasImage && hasInfo;
@@ -197,6 +244,17 @@ export default function ArtGenerator() {
       window.clearTimeout(timer);
     };
   }, [canRender, renderCurrentArtwork]);
+
+  useEffect(() => {
+    if (!initialShowId || !shows.length || selectedShow) return;
+    const matchIndex = findShowIndexById(shows, initialShowId);
+    if (matchIndex === -1) return;
+
+    const nextValue = String(matchIndex);
+    setSelectedShow(nextValue);
+    setInfo(showToInfo(shows[matchIndex]));
+    setDownloadReady(false);
+  }, [initialShowId, selectedShow, shows]);
 
   const onShowChange = (event) => {
     const value = event.target.value;
