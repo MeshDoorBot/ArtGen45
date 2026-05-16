@@ -15,6 +15,8 @@ const emptyInfo = {
   guest: ''
 };
 
+const GUEST_FIELD_ORDER = ['Guest DJ', 'Guest MC'];
+
 const defaultImageTweak = {
   x: 0,
   y: 0,
@@ -33,6 +35,42 @@ function splitTimeRange(range) {
   return { start, end };
 }
 
+function normalizeFieldName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function normalizeGuestValue(value) {
+  return String(value || '').trim();
+}
+
+function isGuestField(key) {
+  const normalizedKey = normalizeFieldName(key);
+  return (
+    normalizedKey.includes('guest') ||
+    normalizedKey === 'featuring' ||
+    normalizedKey === 'feat'
+  );
+}
+
+function getShowGuest(show) {
+  if (!show) return '';
+
+  const orderedGuests = GUEST_FIELD_ORDER
+    .map((field) => normalizeGuestValue(show[field]))
+    .filter(Boolean);
+
+  const otherGuests = Object.entries(show)
+    .filter(([key, value]) => value && isGuestField(key) && !GUEST_FIELD_ORDER.includes(key))
+    .map(([, value]) => normalizeGuestValue(value))
+    .filter(Boolean);
+
+  const guests = [...orderedGuests, ...otherGuests];
+
+  return [...new Set(guests.map((guest) => guest.toLowerCase()))]
+    .map((guestKey) => guests.find((guest) => guest.toLowerCase() === guestKey))
+    .join(' + ');
+}
+
 function showToInfo(show) {
   const times = splitTimeRange(show?.['A-B']);
   return {
@@ -41,7 +79,7 @@ function showToInfo(show) {
     date: toDateInputValue(show?.Date),
     start: times.start,
     end: times.end,
-    guest: ''
+    guest: getShowGuest(show)
   };
 }
 

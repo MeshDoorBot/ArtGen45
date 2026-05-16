@@ -211,6 +211,7 @@ const PILL_PADDING_X = 36;
 const DATE_TIME_GAP = 16;
 const PILL_VERTICAL_GAP = 16;
 const SIDE_MARGIN = 96;
+const GUEST_FIELD_ORDER = ['Guest DJ', 'Guest MC'];
 
 const els = {
   picker: document.getElementById('showPicker'),
@@ -297,6 +298,36 @@ function splitTimeRange(range){
   return { start, end };
 }
 
+function normalizeFieldName(value){
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g,'');
+}
+
+function normalizeGuestValue(value){
+  return String(value || '').trim();
+}
+
+function isGuestField(key){
+  const normalizedKey = normalizeFieldName(key);
+  return normalizedKey.includes('guest') ||
+    normalizedKey === 'featuring' ||
+    normalizedKey === 'feat';
+}
+
+function getShowGuest(show){
+  if(!show) return '';
+  const orderedGuests = GUEST_FIELD_ORDER
+    .map(field=>normalizeGuestValue(show[field]))
+    .filter(Boolean);
+  const otherGuests = Object.entries(show)
+    .filter(([key,value])=>value && isGuestField(key) && !GUEST_FIELD_ORDER.includes(key))
+    .map(([,value])=>normalizeGuestValue(value))
+    .filter(Boolean);
+  const guests = [...orderedGuests, ...otherGuests];
+  return [...new Set(guests.map(guest=>guest.toLowerCase()))]
+    .map(guestKey=>guests.find(guest=>guest.toLowerCase() === guestKey))
+    .join(' + ');
+}
+
 function getArtworkInfo(){
   return {
     title: els.title.value.trim(),
@@ -316,6 +347,7 @@ function populateEditor(show){
   els.date.value = toDateInputValue(show.Date);
   els.start.value = times.start;
   els.end.value = times.end;
+  els.guest.value = getShowGuest(show);
 }
 
 /* ===========================
