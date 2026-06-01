@@ -12,7 +12,9 @@ const emptyInfo = {
   date: '',
   start: '',
   end: '',
-  guest: ''
+  guest: '',
+  bpmMin: '',
+  bpmMax: ''
 };
 
 const GUEST_FIELD_ORDER = ['Guest DJ', 'Guest MC'];
@@ -43,6 +45,11 @@ function normalizeGuestValue(value) {
   return String(value || '').trim();
 }
 
+function normalizeBpmValue(value) {
+  const match = String(value || '').match(/\d{1,3}/);
+  return match ? match[0] : '';
+}
+
 function isGuestField(key) {
   const normalizedKey = normalizeFieldName(key);
   return (
@@ -50,6 +57,24 @@ function isGuestField(key) {
     normalizedKey === 'featuring' ||
     normalizedKey === 'feat'
   );
+}
+
+function getShowBpmRange(show) {
+  if (!show) return { bpmMin: '', bpmMax: '' };
+
+  const rangeValue = show.BPM || show.Bpm || show.bpm || show['BPM Range'] || show['Bpm Range'];
+  const rangeMatches = String(rangeValue || '').match(/\d{1,3}/g) || [];
+  if (rangeMatches.length) {
+    return {
+      bpmMin: rangeMatches[0] || '',
+      bpmMax: rangeMatches[1] || ''
+    };
+  }
+
+  return {
+    bpmMin: normalizeBpmValue(show['BPM Min'] || show['Min BPM'] || show.bpmMin || show.minBpm),
+    bpmMax: normalizeBpmValue(show['BPM Max'] || show['Max BPM'] || show.bpmMax || show.maxBpm)
+  };
 }
 
 function getShowGuest(show) {
@@ -73,13 +98,15 @@ function getShowGuest(show) {
 
 function showToInfo(show) {
   const times = splitTimeRange(show?.['A-B']);
+  const bpmRange = getShowBpmRange(show);
   return {
     title: show?.['Now Playing'] || '',
     dj: show?.DJ || '',
     date: toDateInputValue(show?.Date),
     start: times.start,
     end: times.end,
-    guest: getShowGuest(show)
+    guest: getShowGuest(show),
+    ...bpmRange
   };
 }
 
@@ -656,6 +683,34 @@ export default function ArtGenerator() {
                 <div>
                   <label htmlFor="endInput">End</label>
                   <input id="endInput" type="time" value={info.end} onChange={updateInfo('end')} />
+                </div>
+              </div>
+              <div className="grid-2">
+                <div>
+                  <label htmlFor="bpmMinInput">BPM from</label>
+                  <input
+                    id="bpmMinInput"
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={info.bpmMin}
+                    onChange={updateInfo('bpmMin')}
+                    placeholder="120"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="bpmMaxInput">BPM to</label>
+                  <input
+                    id="bpmMaxInput"
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={info.bpmMax}
+                    onChange={updateInfo('bpmMax')}
+                    placeholder="130"
+                  />
                 </div>
               </div>
               <label className="toggleRow" htmlFor="drawerLogoToggle">
