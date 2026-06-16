@@ -25,6 +25,50 @@ const defaultImageTweak = {
   zoom: 1
 };
 
+const demoTracklist = [
+  'Asha Puthli - Space Talk',
+  'Metro Area - Miura',
+  'Peven Everett - Stuck',
+  'Tornado Wallace - Lonely Planet',
+  'Kerri Chandler - Bar A Thym',
+  'Mala - Alicia',
+  'Bambounou - Temple',
+  'Skee Mask - Reviver',
+  'Octo Octa - I Need You',
+  'Pangaea - Installation',
+  'Joy Orbison - Hyph Mngo',
+  'Shanti Celeste - Sesame',
+  'Call Super - Sulu Sekou',
+  'DJ Python - Angel',
+  'Objekt - Theme From Q',
+  'Erika de Casier - Drama',
+  'AceMo - Where They At???',
+  'K-Lone - In The Dust',
+  'Anz - Clearly Rushing',
+  'Lone - Airglow Fires',
+  'Batu - Marius',
+  'Pearson Sound - Alien Mode',
+  'Helena Hauff - c45p',
+  'Ben UFO - Untitled Dubplate',
+  'Facta - Blush',
+  'Jossy Mitsu - Odawara',
+  'Josey Rebelle - Pressure Mix',
+  'Mesh Test ID - Extra Long Artist Name With A Long Track Title'
+]
+  .concat(Array.from({ length: 6 }, (_, index) => `Extended Mix Test ${String(index + 29).padStart(2, '0')} - Deep Two Hour Tracklist Check`))
+  .join('\n');
+
+const demoInfo = {
+  title: 'Tracklist Export Test',
+  dj: 'Mesh Radio',
+  date: '2026-06-16',
+  start: '20:00',
+  end: '22:00',
+  guest: 'Column Check',
+  bpmMin: '118',
+  bpmMax: '136'
+};
+
 function toDateInputValue(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -184,6 +228,35 @@ async function decodeUpload(file) {
   });
 }
 
+function createDemoArtworkImage() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+
+  const background = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  background.addColorStop(0, '#101010');
+  background.addColorStop(0.42, '#42574c');
+  background.addColorStop(1, '#ece2c8');
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.globalAlpha = 0.78;
+  ctx.fillStyle = '#f4f0e7';
+  ctx.fillRect(120, 160, 760, 760);
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(188, 228, 624, 624);
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = '#f4f0e7';
+  ctx.font = '700 86px Arial, sans-serif';
+  ctx.fillText('MESH', 190, 1010);
+  ctx.font = '700 38px Arial, sans-serif';
+  ctx.fillText('LOCAL TRACKLIST EXPORT TEST', 190, 1074);
+
+  return canvas;
+}
+
 export default function ArtGenerator() {
   const canvasRef = useRef(null);
   const showPickerRef = useRef(null);
@@ -213,6 +286,10 @@ export default function ArtGenerator() {
     if (typeof window === 'undefined') return '';
     const params = new URLSearchParams(window.location.search);
     return cleanShowId(params.get('showId') || params.get('showID') || params.get('id'));
+  });
+  const [demoTracklistMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('demo') === 'tracklist';
   });
 
   const hasInfo = Boolean(info.title.trim());
@@ -320,6 +397,20 @@ export default function ArtGenerator() {
     setInfo(showToInfo(shows[matchIndex]));
     setDownloadReady(false);
   }, [initialShowId, selectedShow, shows]);
+
+  useEffect(() => {
+    if (!demoTracklistMode) return;
+    setFormat('story');
+    setInfo(demoInfo);
+    setTracklist(demoTracklist);
+    setTracklistEnabled(true);
+    setImageTweak(defaultImageTweak);
+    imageRef.current = createDemoArtworkImage();
+    setImageName('Generated demo artwork');
+    setHasImage(true);
+    setHasRendered(false);
+    setDownloadReady(false);
+  }, [demoTracklistMode]);
 
   const onShowChange = (event) => {
     const value = event.target.value;
@@ -436,9 +527,11 @@ export default function ArtGenerator() {
     if (loadingShows) return 'Loading shows...';
     return shows.length ? 'Select a show' : 'No shows found';
   }, [loadingShows, shows.length]);
-  const selectedShowLabel = selectedShow ? formatShowOption(shows[Number(selectedShow)]) : '';
-  const mobileStep = selectedShow ? (hasImage ? 'controls' : 'image') : 'show';
-  const previewPrompt = selectedShow ? (hasImage ? 'Rendering preview' : 'Pick artwork') : 'Pick your show';
+  const selectedShowData = shows[Number(selectedShow)];
+  const selectedShowLabel = selectedShowData ? formatShowOption(selectedShowData) : '';
+  const hasShowContext = Boolean(selectedShow || demoTracklistMode);
+  const mobileStep = hasShowContext ? (hasImage ? 'controls' : 'image') : 'show';
+  const previewPrompt = hasShowContext ? (hasImage ? 'Rendering preview' : 'Pick artwork') : 'Pick your show';
 
   return (
     <main className="shell">
