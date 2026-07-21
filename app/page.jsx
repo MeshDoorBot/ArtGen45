@@ -278,7 +278,7 @@ export default function ArtGenerator() {
   const [loadingShows, setLoadingShows] = useState(true);
   const [imageName, setImageName] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [showPills, setShowPills] = useState(true);
+  const [showPills, setShowPills] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
   const [logoReady, setLogoReady] = useState(false);
   const [imageTweak, setImageTweak] = useState(defaultImageTweak);
